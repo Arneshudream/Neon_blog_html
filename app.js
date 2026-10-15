@@ -1,145 +1,565 @@
 (() => {
+  "use strict";
+
   const $ = id => document.getElementById(id);
-  let mode = "login", me = null, posts = [], toastTimer = null;
-  const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  async function api(url, options={}) {
-    const response = await fetch(url, {credentials:"same-origin", headers:{"Content-Type":"application/json", ...(options.headers||{})}, ...options});
+
+  let mode = "login";
+  let me = null;
+  let posts = [];
+  let toastTimer = null;
+  let loadingPosts = false;
+
+  const escapeHtml = value =>
+    String(value ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[c]);
+
+  async function api(url, options = {}) {
+    const response = await fetch(url, {
+      ...options,
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        ...(options.headers || {})
+      }
+    });
+
     const body = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
+
+    if (!response.ok) {
+      throw new Error(body.error || `Request failed (${response.status})`);
+    }
+
     return body;
   }
+
   function toast(message) {
-    $("toast").textContent = message; $("toast").classList.add("show");
-    clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").classList.remove("show"), 2400);
+    const element = $("toast");
+    if (!element) return;
+
+    element.textContent = message;
+    element.classList.add("show");
+
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      element.classList.remove("show");
+    }, 2400);
   }
+
   function setMode(next) {
     mode = next;
-    document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.mode === mode));
-    $("authSubmit").innerHTML = mode === "login" ? 'Log in <span>↗</span>' : 'Create account <span>✦</span>';
-    $("authPassword").autocomplete = mode === "login" ? "current-password" : "new-password";
-    $("authMessage").textContent = "";
-  }
-  document.querySelectorAll(".tab").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
-  $("authForm").addEventListener("submit", async e => {
-    e.preventDefault(); $("authMessage").textContent = "";
-    try {
-      const result = await api(`/api/${mode}`, {method:"POST", body:JSON.stringify({username:$("authUsername").value.trim(), password:$("authPassword").value})});
-      me = result.username; $("authPassword").value = ""; updateAuth(); await loadPosts(); toast(mode === "login" ? "Welcome back!" : "Account created!");
-    } catch(err) { $("authMessage").textContent = err.message; }
-  });
-  function updateAuth() {
-    $("userBadge").textContent = me ? `@${me}` : "Guest";
-    $("authPanel").classList.toggle("hidden", !!me);
-    $("composer").classList.toggle("hidden", !me);
-    $("logoutBtn").classList.toggle("hidden", !me);
-  }
-  $("logoutBtn").addEventListener("click", async () => {
-    try { await api("/api/logout", {method:"POST", body:"{}"}); } catch(_) {}
-    me = null; updateAuth(); await loadPosts(); toast("Logged out.");
-  });
-  $("postForm").addEventListener("submit", async e => {
-    e.preventDefault(); $("postMessage").textContent = "";
-    try {
-      await api("/api/posts", {method:"POST", body:JSON.stringify({title:$("postTitle").value, content:$("postContent").value})});
-      $("postForm").reset(); await loadPosts(); toast("Your post is saved locally.");
-    } catch(err) { $("postMessage").textContent = err.message; }
-  });
-  async function loadPosts() {
-    try {
-      const data = await api("/api/posts"); me = data.username; posts = data.posts || [];
-      updateAuth(); $("postTotal").textContent = posts.length;
-      renderPosts();
-    } catch(err) {
-      $("feed").innerHTML = `<div class="empty-state">Could not load posts: ${escapeHtml(err.message)}<br>Check that the Python server is running.</div>`;
+
+    document.querySelectorAll(".tab").forEach(button => {
+      button.classList.toggle("active", button.dataset.mode === mode);
+    });
+
+    if ($("authSubmit")) {
+      $("authSubmit").innerHTML =
+        mode === "login"
+          ? 'Log in <span>↗</span>'
+          : 'Create account <span>✦</span>';
     }
+
+    if ($("authPassword")) {
+      $("authPassword").autocomplete =
+        mode === "login" ? "current-password" : "new-password";
+    }
+
+    if ($("authMessage")) $("authMessage").textContent = "";
   }
-  function renderPosts() {
-    if (!posts.length) { $("feed").innerHTML = '<div class="empty-state"><p>✨ No posts yet.</p><p>Be the first to share something with the community.</p></div>'; return; }
-    $("feed").innerHTML = posts.map(p => {
-      const date = p.created_at ? new Date(p.created_at).toLocaleString() : "";
-      const comments = (p.comments || []).map(c => `<div class="comment"><strong>${escapeHtml(c.author)}</strong>${escapeHtml(c.text)}</div>`).join("");
-      const own = me && p.author === me;
-      return `<article class="post-card" data-id="${escapeHtml(p.id)}">
-        <div class="post-meta"><span class="author">✦ ${escapeHtml(p.author)}</span><span class="date">${escapeHtml(date)}</span></div>
-        <h3>${escapeHtml(p.title)}</h3><p class="post-content">${escapeHtml(p.content)}</p>
-        <div class="post-actions">
-          <button class="action-btn ${p.liked_by_me?'liked':''}" data-action="like">${p.liked_by_me?'♥':'♡'} ${p.like_count||0} Like</button>
-          <button class="action-btn" data-action="comments">▤ ${(p.comment_count||0)} Comments</button>
-          <button class="action-btn" data-action="copy">▣ Copy post</button>
-          ${own?'<button class="action-btn" data-action="delete">⌫ Delete</button>':''}
-        </div>
-        <div class="comments ${p.showComments?'':'hidden'}"><div class="comment-list">${comments || '<div class="comment">No comments yet. Start the conversation.</div>'}</div>
-          ${me?`<form class="comment-form"><input name="comment" maxlength="1000" required placeholder="Write a comment..." aria-label="Write a comment"><button class="btn btn-quiet" type="submit">Send</button></form>`:'<p class="tiny-note">Log in to leave a comment.</p>'}
-        </div></article>`;
-    }).join("");
-  }
-  $("feed").addEventListener("click", async e => {
-    const btn = e.target.closest("[data-action]"); if (!btn) return;
-    const card = btn.closest(".post-card"), id = card.dataset.id, action = btn.dataset.action;
-    try {
-      if (action === "comments") {
-        const post = posts.find(p => p.id === id); if (post) post.showComments = !post.showComments;
-        renderPosts(); return;
-      }
-      if (action === "like") {
-        await api(`/api/posts/${encodeURIComponent(id)}/like`, {method:"POST", body:"{}"}); await loadPosts();
-      } else if (action === "copy") {
-        await api(`/api/posts/${encodeURIComponent(id)}/copy`, {method:"POST", body:"{}"}); await loadPosts(); toast("A copy was added to your posts.");
-      } else if (action === "delete") {
-        if (!confirm("Delete your post permanently from this local database?")) return;
-        await api(`/api/posts/${encodeURIComponent(id)}`, {method:"DELETE"}); await loadPosts(); toast("Post deleted.");
-      }
-    } catch(err) { toast(err.message); }
-  });
-  $("feed").addEventListener("submit", async e => {
-    if (!e.target.matches(".comment-form")) return;
-    e.preventDefault(); const card = e.target.closest(".post-card"), input = e.target.elements.comment;
-    try {
-      await api(`/api/posts/${encodeURIComponent(card.dataset.id)}/comments`, {method:"POST", body:JSON.stringify({text:input.value})});
-      await loadPosts(); const p = posts.find(p => p.id === card.dataset.id); if (p) p.showComments = true; renderPosts(); toast("Comment saved.");
-    } catch(err) { toast(err.message); }
-  });
-  $("refreshBtn").addEventListener("click", loadPosts);
-  $("lowMotion").addEventListener("change", e => {
-    document.body.classList.toggle("low-motion", e.target.checked);
-    try { localStorage.setItem("neonBlogLowMotion", e.target.checked ? "1" : "0"); } catch(_) {}
-    if (e.target.checked) stopParticles(); else startParticles();
-  });
-  try { if (localStorage.getItem("neonBlogLowMotion") === "1") { $("lowMotion").checked = true; document.body.classList.add("low-motion"); } } catch(_) {}
-  $("exportBtn").addEventListener("click", async () => {
-    try {
-      const data = await api("/api/posts");
-      const blob = new Blob([JSON.stringify({exported_at:new Date().toISOString(), posts:data.posts}, null, 2)], {type:"application/json"});
-      const url = URL.createObjectURL(blob), a = document.createElement("a");
-      a.href = url; a.download = "neon-blog-backup.json"; a.click(); URL.revokeObjectURL(url);
-      toast("Backup export started.");
-    } catch(err) { toast(err.message); }
+
+  document.querySelectorAll(".tab").forEach(button => {
+    button.addEventListener("click", () => setMode(button.dataset.mode));
   });
 
-  // Small canvas particle effect; fewer particles on narrow screens and disabled in memory-saver mode.
-  const canvas = $("particles"), ctx = canvas.getContext("2d", {alpha:true});
-  let particles = [], raf = 0, width = 0, height = 0;
-  function resize() {
-    width = canvas.width = Math.min(window.innerWidth, 1600);
-    height = canvas.height = Math.min(window.innerHeight, 1200);
-    const count = window.innerWidth < 600 ? 14 : 28;
-    particles = Array.from({length:count}, () => ({x:Math.random()*width,y:Math.random()*height,r:1+Math.random()*1.5,dx:(Math.random()-.5)*.25,dy:-.12-Math.random()*.25,a:.2+Math.random()*.45}));
-  }
-  function draw() {
-    ctx.clearRect(0,0,width,height);
-    for (const p of particles) {
-      p.x += p.dx; p.y += p.dy;
-      if (p.y < -5) {p.y=height+5;p.x=Math.random()*width;}
-      if (p.x < -5) p.x=width+5; if (p.x > width+5) p.x=-5;
-      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
-      ctx.fillStyle = `rgba(60,244,237,${p.a})`; ctx.fill();
+  $("authForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if ($("authMessage")) $("authMessage").textContent = "";
+
+    try {
+      const result = await api(`/api/${mode}`, {
+        method: "POST",
+        body: JSON.stringify({
+          username: $("authUsername").value.trim(),
+          password: $("authPassword").value
+        })
+      });
+
+      me = result.username;
+      $("authPassword").value = "";
+
+      updateAuth();
+      await loadPosts();
+
+      toast(mode === "login" ? "Welcome back!" : "Account created!");
+    } catch (error) {
+      if ($("authMessage")) {
+        $("authMessage").textContent = error.message;
+      }
     }
+  });
+
+  function updateAuth() {
+    if ($("userBadge")) {
+      $("userBadge").textContent = me ? `@${me}` : "Guest";
+    }
+
+    $("authPanel")?.classList.toggle("hidden", !!me);
+    $("composer")?.classList.toggle("hidden", !me);
+    $("logoutBtn")?.classList.toggle("hidden", !me);
+  }
+
+  $("logoutBtn")?.addEventListener("click", async () => {
+    try {
+      await api("/api/logout", {
+        method: "POST",
+        body: "{}"
+      });
+
+      me = null;
+      updateAuth();
+      await loadPosts();
+      toast("Logged out.");
+    } catch (error) {
+      toast(error.message);
+    }
+  });
+
+  $("postForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+
+    if ($("postMessage")) $("postMessage").textContent = "";
+
+    try {
+      await api("/api/posts", {
+        method: "POST",
+        body: JSON.stringify({
+          title: $("postTitle").value.trim(),
+          content: $("postContent").value.trim()
+        })
+      });
+
+      $("postForm").reset();
+      await loadPosts();
+      toast("Your post is saved locally.");
+    } catch (error) {
+      if ($("postMessage")) {
+        $("postMessage").textContent = error.message;
+      }
+    }
+  });
+
+  async function loadPosts() {
+    if (loadingPosts) return;
+    loadingPosts = true;
+
+    try {
+      const data = await api("/api/posts");
+
+      me = data.username;
+      posts = Array.isArray(data.posts) ? data.posts : [];
+
+      updateAuth();
+
+      if ($("postTotal")) {
+        $("postTotal").textContent = posts.length;
+      }
+
+      renderPosts();
+    } catch (error) {
+      if ($("feed")) {
+        $("feed").innerHTML = `
+          <div class="empty-state">
+            Could not load posts: ${escapeHtml(error.message)}
+            <br>Check that the Python server is running.
+          </div>`;
+      }
+    } finally {
+      loadingPosts = false;
+    }
+  }
+
+  function renderPosts() {
+    const feed = $("feed");
+    if (!feed) return;
+
+    if (!posts.length) {
+      feed.innerHTML = `
+        <div class="empty-state">
+          <p>✨ No posts yet.</p>
+          <p>Be the first to share something with the community.</p>
+        </div>`;
+      return;
+    }
+
+    feed.innerHTML = posts.map(post => {
+      const date = post.created_at
+        ? new Date(post.created_at).toLocaleString()
+        : "";
+
+      const comments = (post.comments || []).map(comment => `
+        <div class="comment">
+          <strong>${escapeHtml(comment.author)}</strong>
+          ${escapeHtml(comment.text)}
+        </div>
+      `).join("");
+
+      const own = me && post.author === me;
+
+      return `
+        <article class="post-card" data-id="${escapeHtml(post.id)}">
+          <div class="post-meta">
+            <span class="author">✦ ${escapeHtml(post.author)}</span>
+            <span class="date">${escapeHtml(date)}</span>
+          </div>
+
+          <h3>${escapeHtml(post.title)}</h3>
+          <p class="post-content">${escapeHtml(post.content)}</p>
+
+          <div class="post-actions">
+            <button class="action-btn ${post.liked_by_me ? "liked" : ""}"
+              data-action="like" type="button">
+              ${post.liked_by_me ? "♥" : "♡"}
+              ${Number(post.like_count) || 0} Like
+            </button>
+
+            <button class="action-btn"
+              data-action="comments" type="button">
+              ▤ ${Number(post.comment_count) || 0} Comments
+            </button>
+
+            <button class="action-btn"
+              data-action="copy" type="button">
+              ▣ Copy post
+            </button>
+
+            ${own ? `
+              <button class="action-btn"
+                data-action="delete" type="button">
+                ⌫ Delete
+              </button>
+            ` : ""}
+          </div>
+
+          <div class="comments ${post.showComments ? "" : "hidden"}">
+            <div class="comment-list">
+              ${comments || '<div class="comment">No comments yet. Start the conversation.</div>'}
+            </div>
+
+            ${me ? `
+              <form class="comment-form">
+                <input name="comment"
+                  maxlength="1000"
+                  required
+                  placeholder="Write a comment..."
+                  aria-label="Write a comment">
+
+                <button class="btn btn-quiet" type="submit">
+                  Send
+                </button>
+              </form>
+            ` : `
+              <p class="tiny-note">Log in to leave a comment.</p>
+            `}
+          </div>
+        </article>
+      `;
+    }).join("");
+  }
+
+  $("feed")?.addEventListener("click", async event => {
+    const button = event.target.closest("[data-action]");
+    if (!button) return;
+
+    const card = button.closest(".post-card");
+    if (!card) return;
+
+    const id = card.dataset.id;
+    const action = button.dataset.action;
+
+    if (action === "comments") {
+      const post = posts.find(item => item.id === id);
+
+      if (post) {
+        post.showComments = !post.showComments;
+        renderPosts();
+      }
+
+      return;
+    }
+
+    if (action === "delete") {
+      if (!confirm("Delete your post permanently from this local database?")) {
+        return;
+      }
+    }
+
+    button.disabled = true;
+
+    try {
+      if (action === "like") {
+        await api(`/api/posts/${encodeURIComponent(id)}/like`, {
+          method: "POST",
+          body: "{}"
+        });
+
+        await loadPosts();
+      } else if (action === "copy") {
+        await api(`/api/posts/${encodeURIComponent(id)}/copy`, {
+          method: "POST",
+          body: "{}"
+        });
+
+        await loadPosts();
+        toast("A copy was added to your posts.");
+      } else if (action === "delete") {
+        await api(`/api/posts/${encodeURIComponent(id)}`, {
+          method: "DELETE"
+        });
+
+        await loadPosts();
+        toast("Post deleted.");
+      }
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  $("feed")?.addEventListener("submit", async event => {
+    if (!event.target.matches(".comment-form")) return;
+
+    event.preventDefault();
+
+    const form = event.target;
+    const card = form.closest(".post-card");
+    const input = form.elements.comment;
+
+    if (!card || !input.value.trim()) return;
+
+    const postId = card.dataset.id;
+    const submitButton = form.querySelector('[type="submit"]');
+
+    if (submitButton) submitButton.disabled = true;
+
+    try {
+      await api(
+        `/api/posts/${encodeURIComponent(postId)}/comments`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            text: input.value.trim()
+          })
+        }
+      );
+
+      await loadPosts();
+
+      const post = posts.find(item => item.id === postId);
+      if (post) post.showComments = true;
+
+      renderPosts();
+      toast("Comment saved.");
+    } catch (error) {
+      toast(error.message);
+      if (submitButton) submitButton.disabled = false;
+    }
+  });
+
+  $("refreshBtn")?.addEventListener("click", loadPosts);
+
+  const lowMotion = $("lowMotion");
+
+  function saveMotionPreference(enabled) {
+    document.body.classList.toggle("low-motion", enabled);
+
+    try {
+      localStorage.setItem("neonBlogLowMotion", enabled ? "1" : "0");
+    } catch (_) {}
+
+    if (enabled) {
+      stopParticles();
+    } else {
+      startParticles();
+    }
+  }
+
+  if (lowMotion) {
+    try {
+      lowMotion.checked =
+        localStorage.getItem("neonBlogLowMotion") === "1";
+    } catch (_) {}
+
+    document.body.classList.toggle("low-motion", lowMotion.checked);
+
+    lowMotion.addEventListener("change", event => {
+      saveMotionPreference(event.target.checked);
+    });
+  }
+
+  $("exportBtn")?.addEventListener("click", async () => {
+    try {
+      const data = await api("/api/posts");
+
+      const backup = {
+        exported_at: new Date().toISOString(),
+        posts: data.posts || []
+      };
+
+      const blob = new Blob(
+        [JSON.stringify(backup, null, 2)],
+        { type: "application/json" }
+      );
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+
+      anchor.href = url;
+      anchor.download = "neon-blog-backup.json";
+
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+      toast("Backup export started.");
+    } catch (error) {
+      toast(error.message);
+    }
+  });
+
+  const canvas = $("particles");
+  const ctx = canvas ? canvas.getContext("2d", { alpha: true }) : null;
+
+  let particles = [];
+  let raf = 0;
+  let width = 0;
+  let height = 0;
+
+  function resize() {
+    if (!canvas || !ctx) return;
+
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+
+    width = window.innerWidth;
+    height = window.innerHeight;
+
+    canvas.width = Math.floor(width * pixelRatio);
+    canvas.height = Math.floor(height * pixelRatio);
+
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+
+    ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+
+    const count = window.innerWidth < 600 ? 14 : 28;
+
+    particles = Array.from({ length: count }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      r: 1 + Math.random() * 1.5,
+      dx: (Math.random() - 0.5) * 0.25,
+      dy: -0.12 - Math.random() * 0.25,
+      a: 0.2 + Math.random() * 0.45
+    }));
+  }
+
+  function draw() {
+    if (!ctx || !canvas) {
+      raf = 0;
+      return;
+    }
+
+    ctx.clearRect(0, 0, width, height);
+
+    for (const particle of particles) {
+      particle.x += particle.dx;
+      particle.y += particle.dy;
+
+      if (particle.y < -5) {
+        particle.y = height + 5;
+        particle.x = Math.random() * width;
+      }
+
+      if (particle.x < -5) particle.x = width + 5;
+      if (particle.x > width + 5) particle.x = -5;
+
+      ctx.beginPath();
+      ctx.arc(
+        particle.x,
+        particle.y,
+        particle.r,
+        0,
+        Math.PI * 2
+      );
+
+      ctx.fillStyle = `rgba(60,244,237,${particle.a})`;
+      ctx.fill();
+    }
+
     raf = requestAnimationFrame(draw);
   }
-  function startParticles() { if (!raf && !document.hidden && !$("lowMotion").checked) {resize(); draw();} }
-  function stopParticles() { if (raf) cancelAnimationFrame(raf); raf=0; ctx.clearRect(0,0,width,height); }
-  document.addEventListener("visibilitychange", () => document.hidden ? stopParticles() : startParticles());
-  window.addEventListener("resize", () => { if (!$("lowMotion").checked) resize(); });
-  if (!$("lowMotion").checked) startParticles();
-  (async () => { try { const data = await api("/api/me"); me = data.username; } catch(_) {} updateAuth(); await loadPosts(); })();
+
+  function startParticles() {
+    if (
+      !canvas ||
+      !ctx ||
+      raf ||
+      document.hidden ||
+      (lowMotion && lowMotion.checked)
+    ) {
+      return;
+    }
+
+    resize();
+    draw();
+  }
+
+  function stopParticles() {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+
+    if (ctx) ctx.clearRect(0, 0, width, height);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopParticles();
+    } else {
+      startParticles();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (!lowMotion || !lowMotion.checked) {
+      resize();
+    }
+  });
+
+  if (!lowMotion || !lowMotion.checked) {
+    startParticles();
+  }
+
+  async function initialize() {
+    try {
+      const data = await api("/api/me");
+      me = data.username || null;
+    } catch (_) {
+      me = null;
+    }
+
+    updateAuth();
+    await loadPosts();
+  }
+
+  initialize();
 })();
