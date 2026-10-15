@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b18">
+  <title>Neon Local Blog</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <canvas id="particles" aria-hidden="true"></canvas>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Neon Local Blog home"><span class="brand-mark">N</span> NEON<span class="brand-accent">BLOG</span></a>
+    <div class="top-actions">
+      <label class="light-toggle"><input id="lowMotion" type="checkbox"> Memory saver</label>
+      <span id="userBadge" class="user-badge">Guest</span>
+      <button id="logoutBtn" class="btn btn-quiet hidden">Log out</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <p class="eyebrow">YOUR WORDS. YOUR DEVICE. YOUR DATA.</p>
+      <h1>Ideas that <span class="gradient-text">glow.</span></h1>
+      <p class="hero-copy">A lightweight community blog powered by local text files. No cloud database required.</p>
+    </section>
+
+    <section id="authPanel" class="auth-panel glass">
+      <div class="auth-tabs">
+        <button class="tab active" data-mode="login">Log in</button>
+        <button class="tab" data-mode="signup">Create account</button>
+      </div>
+      <form id="authForm" class="stack">
+        <label>Username<input id="authUsername" autocomplete="username" minlength="3" maxlength="24" required placeholder="your_username"></label>
+        <label>Password<input id="authPassword" type="password" autocomplete="current-password" minlength="8" required placeholder="At least 8 characters"></label>
+        <button id="authSubmit" class="btn btn-primary" type="submit">Log in <span>↗</span></button>
+        <p id="authMessage" class="message" role="status"></p>
+      </form>
+      <p class="tiny-note">Passwords are stored as secure hashes in <code>data/users.txt</code>, not as readable passwords.</p>
+    </section>
+
+    <section id="composer" class="composer glass hidden">
+      <div class="section-heading"><div><p class="eyebrow">MAKE SOMETHING</p><h2>Write a post</h2></div><span class="glow-dot"></span></div>
+      <form id="postForm" class="stack">
+        <label>Title<input id="postTitle" maxlength="100" required placeholder="A headline that catches the eye"></label>
+        <label>Your post<textarea id="postContent" maxlength="5000" rows="4" required placeholder="Share an idea, story, tip or thought..."></textarea></label>
+        <div class="composer-footer"><span class="tiny-note">Up to 5,000 characters</span><button class="btn btn-primary" type="submit">Publish post <span>✦</span></button></div>
+        <p id="postMessage" class="message" role="status"></p>
+      </form>
+    </section>
+
+    <section class="feed-section">
+      <div class="section-heading"><div><p class="eyebrow">FROM THE COMMUNITY</p><h2>Latest posts <span id="postTotal" class="count">0</span></h2></div><button id="refreshBtn" class="btn btn-quiet">↻ Refresh</button></div>
+      <div id="feed" class="feed"><div class="empty-state"><span class="loader"></span><p>Loading the blog...</p></div></div>
+    </section>
+    <footer><span class="brand-mini">N</span> Neon Local Blog <span>·</span> Stored locally on this device <span>·</span> <button id="exportBtn" class="text-button">Export backup</button></footer>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
