@@ -18,19 +18,19 @@ import threading
 
 ROOT = Path(file).resolve().parent
 
-Root-level database files
+#Root-level database files
 
 USERS_FILE = ROOT / "users.txt"
 DB_FILE = ROOT / "database.txt"
 
-Create database files automatically if missing
+#Create database files automatically if missing
 
 USERS_FILE.touch(exist_ok=True)
 DB_FILE.touch(exist_ok=True)
 
-Disable Flask's automatic static-file route.
+#Disable Flask's automatic static-file route.
 
-We serve only the specific frontend files below.
+#We serve only the specific frontend files below.
 
 app = Flask(name, static_folder=None)
 
