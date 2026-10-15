@@ -470,18 +470,6 @@ START SERVER
 
 ============================================================
 
-if name == "main":
-print("=" * 45)
-print(" NEON LOCAL BLOG — ROOT-FOLDER MODE")
-print("=" * 45)
-print("Website: http://127.0.0.1:5000")
-print("Users:   ", USERS_FILE)
-print("Posts:   ", DB_FILE)
-print("Keep this terminal running while using the blog.")
-print("Press Ctrl+C to stop the server.")
-
-app.run(
-    host="127.0.0.1",
-    port=5000,
-    debug=False
-)
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
