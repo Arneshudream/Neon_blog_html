@@ -35,12 +35,12 @@ def home():
     return send_from_directory(str(ROOT), "index.html")
 
 
-@app.get("/static/style.css")
+@app.get("/style.css")
 def serve_css():
     return send_from_directory(str(ROOT), "style.css")
 
 
-@app.get("/static/app.js")
+@app.get("/app.js")
 def serve_javascript():
     return send_from_directory(str(ROOT), "app.js")
 
