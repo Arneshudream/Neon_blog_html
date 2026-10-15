@@ -10,9 +10,9 @@ import threading
 
 ============================================================
 
-NEON LOCAL BLOG — ROOT-FOLDER VERSION
+#NEON LOCAL BLOG — ROOT-FOLDER VERSION
 
-All project files are stored beside app.py.
+#All project files are stored beside app.py.
 
 ============================================================
 
@@ -48,9 +48,9 @@ lock = threading.RLock()
 
 ============================================================
 
-FRONTEND FILE ROUTES
+#FRONTEND FILE ROUTES
 
-index.html, style.css and app.js are all in ROOT.
+#index.html, style.css and app.js are all in ROOT.
 
 ============================================================
 
@@ -68,9 +68,9 @@ return send_from_directory(ROOT, "app.js")
 
 ============================================================
 
-DATABASE FUNCTIONS
+#DATABASE FUNCTIONS
 
-Each database record occupies one JSON line.
+#Each database record occupies one JSON line.
 
 ============================================================
 
@@ -121,7 +121,7 @@ write_json_lines(DB_FILE, rows)
 
 ============================================================
 
-AUTHENTICATION HELPERS
+#AUTHENTICATION HELPERS
 
 ============================================================
 
@@ -145,7 +145,7 @@ return str(value or "").strip()[:limit]
 
 ============================================================
 
-SECURITY HEADERS
+#SECURITY HEADERS
 
 ============================================================
 
@@ -158,7 +158,7 @@ return response
 
 ============================================================
 
-CURRENT USER
+#CURRENT USER
 
 ============================================================
 
@@ -168,7 +168,7 @@ return jsonify(username=current_user())
 
 ============================================================
 
-SIGN UP
+#SIGN UP
 
 ============================================================
 
@@ -220,7 +220,7 @@ return jsonify(username=username), 201
 
 ============================================================
 
-LOG IN
+#LOG IN
 
 ============================================================
 
@@ -255,7 +255,7 @@ return jsonify(username=user["username"])
 
 ============================================================
 
-LOG OUT
+#LOG OUT
 
 ============================================================
 
@@ -266,7 +266,7 @@ return jsonify(ok=True)
 
 ============================================================
 
-GET POSTS
+#GET POSTS
 
 ============================================================
 
@@ -292,7 +292,7 @@ return jsonify(posts=data, username=viewer)
 
 ============================================================
 
-CREATE POST
+#CREATE POST
 
 ============================================================
 
@@ -328,7 +328,7 @@ return jsonify(post=post), 201
 
 ============================================================
 
-COPY POST
+#COPY POST
 
 ============================================================
 
@@ -362,7 +362,7 @@ return jsonify(post=duplicate), 201
 
 ============================================================
 
-DELETE OWN POST
+#DELETE OWN POST
 
 ============================================================
 
@@ -393,7 +393,7 @@ return jsonify(ok=True)
 
 ============================================================
 
-LIKE / UNLIKE POST
+#LIKE / UNLIKE POST
 
 ============================================================
 
@@ -426,7 +426,7 @@ return jsonify(
 
 ============================================================
 
-ADD COMMENT
+#ADD COMMENT
 
 ============================================================
 
@@ -466,7 +466,7 @@ return jsonify(comment=comment), 201
 
 ============================================================
 
-START SERVER
+#START SERVER
 
 ============================================================
 
